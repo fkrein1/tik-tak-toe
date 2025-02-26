@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 
 interface GameState {
@@ -95,6 +95,19 @@ export default function GameScreen() {
     return null;
   };
 
+  const isDraw = !gameState?.winner && 
+    Object.values(gameState?.board.cells || {}).every(cell => cell !== "");
+
+  const getGameResult = () => {
+    if (gameState?.winner) {
+      return gameState.winner === player ? "You Win! 🎉" : "You Lose! 😞";
+    }
+    if (isDraw) {
+      return "Game Draw! 🤝";
+    }
+    return null;
+  };
+
   const handleCellPress = async (cellKey: string) => {
     if (!gameState || loading) return;
     
@@ -108,7 +121,7 @@ export default function GameScreen() {
       return;
     }
 
-    if (gameState.board.cells[cellKey] || gameState.winner) return;
+    if (gameState.board.cells[cellKey] || gameState.winner || isDraw) return;
 
     setLoading(true);
     
@@ -135,41 +148,57 @@ export default function GameScreen() {
 
   if (!gameState) return <View style={styles.container} />;
 
+  const gameResult = getGameResult();
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Game Code: {gameId}</Text>
-      <Text style={styles.status}>
-        {gameState.winner
-          ? `Winner: ${gameState.winner}`
-          : gameState.current_player
-          ? `Current Player: ${gameState.current_player}`
-          : "Waiting for players..."}
-      </Text>
 
-      {(!gameState.player_o || !gameState.player_x) && (
-        <Text style={styles.waiting}>
-          Waiting for {!gameState.player_o ? "Player O" : "Player X"} to join...
-        </Text>
-      )}
-
-      <View style={styles.board}>
-        {Object.entries(gameState.board.cells).map(([cellKey, value]) => (
+      {gameResult ? (
+        <View style={styles.resultContainer}>
+          <Text style={styles.resultText}>{gameResult}</Text>
           <TouchableOpacity
-            key={cellKey}
-            style={styles.cell}
-            onPress={() => handleCellPress(cellKey)}
-            disabled={
-              !gameState.player_o ||
-              !gameState.player_x ||
-              gameState.current_player !== player ||
-              !!value ||
-              !!gameState.winner
-            }
+            style={styles.newGameButton}
+            onPress={() => router.push("/")}
           >
-            <Text style={styles.cellText}>{value}</Text>
+            <Text style={styles.buttonText}>Play Again</Text>
           </TouchableOpacity>
-        ))}
-      </View>
+        </View>
+      ) : (
+        <>
+          <Text style={styles.status}>
+            {gameState.current_player
+              ? `Current Player: ${gameState.current_player}`
+              : "Waiting for players..."}
+          </Text>
+
+          {(!gameState.player_o || !gameState.player_x) && (
+            <Text style={styles.waiting}>
+              Waiting for {!gameState.player_o ? "Player O" : "Player X"} to join...
+            </Text>
+          )}
+
+          <View style={styles.board}>
+            {Object.entries(gameState.board.cells).map(([cellKey, value]) => (
+              <TouchableOpacity
+                key={cellKey}
+                style={styles.cell}
+                onPress={() => handleCellPress(cellKey)}
+                disabled={
+                  !gameState.player_o ||
+                  !gameState.player_x ||
+                  gameState.current_player !== player ||
+                  !!value ||
+                  !!gameState.winner ||
+                  isDraw
+                }
+              >
+                <Text style={styles.cellText}>{value}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
     </View>
   );
 }
@@ -216,5 +245,28 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: "bold",
     color: "#2c3e50",
+  },
+  resultContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  resultText: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: "#2ecc71",
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  newGameButton: {
+    backgroundColor: "#3498db",
+    padding: 15,
+    borderRadius: 10,
+    marginTop: 20,
+  },
+  buttonText: {
+    color: "white",
+    fontSize: 18,
+    fontWeight: "600",
   },
 });
